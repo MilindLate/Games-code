@@ -1,0 +1,85 @@
+<div style="padding:0 0 1rem">
+<div style="display:flex;gap:8px;margin-bottom:12px;font-size:12px;align-items:center;color:var(--color-text-secondary)">
+  <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#A32D2D"></span>Unsafe</span>
+  <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75"></span>Safe (YOLOv8m)</span>
+  <span style="margin-left:auto;font-size:11px">Safety thresholds: FN &lt; 8% · GPU &lt; 80% · Heartbeat: 0 failures</span>
+</div>
+<table style="width:100%;border-collapse:collapse;font-size:13px">
+<thead>
+<tr style="border-bottom:0.5px solid var(--color-border-secondary)">
+<th style="text-align:left;padding:6px 8px;font-weight:500;color:var(--color-text-secondary)">Variant</th>
+<th style="text-align:center;padding:6px 8px;font-weight:500;color:var(--color-text-secondary)">Accuracy</th>
+<th style="text-align:center;padding:6px 8px;font-weight:500;color:var(--color-text-secondary)">FN Rate</th>
+<th style="text-align:center;padding:6px 8px;font-weight:500;color:var(--color-text-secondary)">Throughput</th>
+<th style="text-align:center;padding:6px 8px;font-weight:500;color:var(--color-text-secondary)">GPU util.</th>
+<th style="text-align:center;padding:6px 8px;font-weight:500;color:var(--color-text-secondary)">Status</th>
+</tr>
+</thead>
+<tbody id="tb"></tbody>
+</table>
+<div style="margin-top:16px">
+<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:6px">Accuracy vs GPU utilisation</div>
+<svg width="100%" viewBox="0 0 620 130">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<!-- GPU axis -->
+<line x1="60" y1="100" x2="580" y2="100" stroke="var(--color-border-secondary)" stroke-width="0.5"/>
+<text class="ts" x="60" y="118" text-anchor="middle">48%</text>
+<text class="ts" x="190" y="118" text-anchor="middle">55%</text>
+<text class="ts" x="295" y="118" text-anchor="middle">67%</text>
+<text class="ts" x="450" y="118" text-anchor="middle">98%</text>
+<text class="ts" x="560" y="118" text-anchor="middle">&gt;99%</text>
+<text class="ts" x="310" y="130" text-anchor="middle">GPU utilisation (%)</text>
+<!-- 80% threshold line -->
+<line x1="410" y1="12" x2="410" y2="105" stroke="#BA7517" stroke-width="0.5" stroke-dasharray="3 3"/>
+<text class="ts" x="412" y="22" style="fill:#BA7517">80% limit</text>
+<!-- Bubbles: size ∝ throughput -->
+<!-- n: x=60 acc=81.6 → y = 100-(81.6-78)*10=64 -->
+<circle cx="60"  cy="36" r="18" fill="#A32D2D" opacity="0.85"/>
+<text class="ts" x="60"  cy="36" text-anchor="middle" dominant-baseline="central" y="36" style="fill:#FCEBEB">v8n</text>
+<text class="ts" x="60"  y="20" text-anchor="middle" style="fill:var(--color-text-secondary)">81.6%</text>
+<!-- s -->
+<circle cx="190" cy="26" r="16" fill="#A32D2D" opacity="0.85"/>
+<text class="ts" x="190" y="26" text-anchor="middle" dominant-baseline="central" style="fill:#FCEBEB">v8s</text>
+<text class="ts" x="190" y="12" text-anchor="middle" style="fill:var(--color-text-secondary)">87.3%</text>
+<!-- m -->
+<circle cx="295" cy="14" r="15" fill="#0F6E56" opacity="0.9"/>
+<text class="ts" x="295" y="14" text-anchor="middle" dominant-baseline="central" style="fill:#E1F5EE">v8m ✓</text>
+<text class="ts" x="295" y="60" text-anchor="middle" style="fill:#0F6E56">94.3%</text>
+<line x1="295" y1="29" x2="295" y2="54" stroke="#0F6E56" stroke-width="0.5" stroke-dasharray="2 2"/>
+<!-- l -->
+<circle cx="450" cy="10" r="12" fill="#A32D2D" opacity="0.85"/>
+<text class="ts" x="450" y="10" text-anchor="middle" dominant-baseline="central" style="fill:#FCEBEB">v8l</text>
+<text class="ts" x="450" y="26" text-anchor="middle" style="fill:var(--color-text-secondary)">97.2%</text>
+<!-- x -->
+<circle cx="558" cy="8" r="10" fill="#A32D2D" opacity="0.85"/>
+<text class="ts" x="558" y="8" text-anchor="middle" dominant-baseline="central" style="fill:#FCEBEB">v8x</text>
+<text class="ts" x="558" y="24" text-anchor="middle" style="fill:var(--color-text-secondary)">98.1%</text>
+</svg>
+</div>
+</div>
+<script>
+const rows=[
+  {v:'YOLOv8n',acc:'81.6%',fn:'18.4%',hz:'28.1 Hz',gpu:'48%',status:'Unsafe: excessive FN',safe:false},
+  {v:'YOLOv8s',acc:'87.3%',fn:'12.7%',hz:'23.3 Hz',gpu:'55%',status:'Unsafe: excessive FN',safe:false},
+  {v:'YOLOv8m ✓',acc:'94.3%',fn:'5.7%',hz:'18.3 Hz',gpu:'67%',status:'Safe — all constraints met',safe:true},
+  {v:'YOLOv8l',acc:'97.2%',fn:'2.8%',hz:'6.2 Hz',gpu:'98%',status:'Unsafe: MAVLink failures',safe:false},
+  {v:'YOLOv8x',acc:'98.1%',fn:'1.9%',hz:'2.8 Hz',gpu:'>99%',status:'Unsafe: CPU saturation',safe:false},
+];
+const tb=document.getElementById('tb');
+rows.forEach(r=>{
+  const accent=r.safe?'#1D9E75':'#A32D2D';
+  const bg=r.safe?'var(--color-background-success)':'var(--color-background-danger)';
+  tb.innerHTML+=`<tr style="border-bottom:0.5px solid var(--color-border-tertiary);background:${r.safe?'var(--color-background-success)':'transparent'}">
+    <td style="padding:7px 8px;font-weight:${r.safe?500:400}">${r.v}</td>
+    <td style="text-align:center;padding:7px 8px">${r.acc}</td>
+    <td style="text-align:center;padding:7px 8px;color:${r.fn==='5.7%'?'#0F6E56':'#A32D2D'}">${r.fn}</td>
+    <td style="text-align:center;padding:7px 8px">${r.hz}</td>
+    <td style="text-align:center;padding:7px 8px">${r.gpu}</td>
+    <td style="padding:7px 8px;font-size:12px;color:${accent}">${r.status}</td>
+  </tr>`;
+});
+</script>
