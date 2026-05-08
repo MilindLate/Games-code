@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Archer: Wilderness</title>
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a1a;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            border: 2px solid #444;
+        }
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #1e3c72, #2a5298);
+            cursor: crosshair;
+        }
+        .stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .wind-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            font-weight: bold;
+        }
+        #power-meter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 10px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 5px;
+            display: none;
+        }
+        #power-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #2ecc71, #f1c40f, #e74c3c);
+            border-radius: 5px;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div class="stats">
+            <div id="score" style="font-size: 24px; font-weight: bold;">Score: 0</div>
+            <div id="arrows">Arrows: 10</div>
+        </div>
+        <div class="wind-indicator">
+            Wind: <span id="wind-val">0.0</span> <br>
+            <span id="wind-dir">→</span>
+        </div>
+        <div id="power-meter"><div id="power-fill"></div></div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreVal = document.getElementById('score');
+    const arrowsVal = document.getElementById('arrows');
+    const windVal = document.getElementById('wind-val');
+    const windDir = document.getElementById('wind-dir');
+    const powerMeter = document.getElementById('power-meter');
+    const powerFill = document.getElementById('power-fill');
+
+    canvas.width = 1000;
+    canvas.height = 500;
+
+    // Game Variables
+    let score = 0;
+    let arrowsLeft = 10;
+    let wind = (Math.random() * 0.1) - 0.05;
+    let isDragging = false;
+    let startPoint = { x: 0, y: 0 };
+    let endPoint = { x: 0, y: 0 };
+    
+    let arrows = [];
+    let particles = [];
+    let target = { x: 850, y: 250, radius: 45, speed: 1.5, dir: 1 };
+
+    // --- Environment Elements ---
+    function drawScenery() {
+        // Sky Gradient
+        let skyGrd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        skyGrd.addColorStop(0, "#1a2a6c");
+        skyGrd.addColorStop(1, "#b21f1f");
+        ctx.fillStyle = skyGrd;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Distant Mountains
+        ctx.fillStyle = "#2c3e50";
+        ctx.beginPath();
+        ctx.moveTo(0, 400);
+        ctx.lineTo(200, 200); ctx.lineTo(400, 350);
+        ctx.lineTo(600, 150); ctx.lineTo(1000, 400);
+        ctx.fill();
+
+        // Ground
+        ctx.fillStyle = "#1b3310";
+        ctx.fillRect(0, 400, canvas.width, 100);
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x; this.y = y;
+            this.vx = (Math.random() - 0.5) * 4;
+            this.vy = (Math.random() - 0.5) * 4;
+            this.alpha = 1;
+            this.color = color;
+        }
+        update() {
+            this.x += this.vx; this.y += this.vy;
+            this.alpha -= 0.02;
+        }
+        draw() {
+            ctx.globalAlpha = this.alpha;
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, 3, 3);
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // --- Game Logic ---
+    function spawnParticles(x, y, color) {
+        for(let i=0; i<15; i++) particles.push(new Particle(x, y, color));
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (arrowsLeft <= 0) return;
+        isDragging = true;
+        const rect = canvas.getBoundingClientRect();
+        startPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        powerMeter.style.display = 'block';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const rect = canvas.getBoundingClientRect();
+        endPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        
+        const dist = Math.hypot(startPoint.x - endPoint.x, startPoint.y - endPoint.y);
+        powerFill.style.width = Math.min(dist, 200) / 2 + '%';
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (!isDragging) return;
+        const dx = startPoint.x - endPoint.x;
+        const dy = startPoint.y - endPoint.y;
+        const power = Math.min(Math.hypot(dx, dy), 200) * 0.12;
+        
+        const angle = Math.atan2(dy, dx);
+        
+        arrows.push({
+            x: startPoint.x, y: startPoint.y,
+            vx: Math.cos(angle) * power,
+            vy: Math.sin(angle) * power,
+            stuck: false, angle: angle, trail: []
+        });
+
+        arrowsLeft--;
+        isDragging = false;
+        powerMeter.style.display = 'none';
+        updateUI();
+    });
+
+    function updateUI() {
+        scoreVal.innerText = `Score: ${score}`;
+        arrowsVal.innerText = `Arrows: ${arrowsLeft}`;
+        windVal.innerText = Math.abs(wind * 100).toFixed(1);
+        windDir.innerText = wind > 0 ? "→" : "←";
+    }
+
+    function drawArrow(a) {
+        ctx.save();
+        ctx.translate(a.x, a.y);
+        ctx.rotate(a.angle);
+        
+        // Shadow
+        ctx.shadowBlur = 5; ctx.shadowColor = "black";
+        
+        // Shaft
+        ctx.strokeStyle = '#634028'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(0, 0); ctx.stroke();
+        
+        // Fletching (feathers)
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(-40, -5); ctx.lineTo(-35, 0); ctx.lineTo(-40, 5); ctx.fill();
+        
+        // Tip
+        ctx.fillStyle = '#bdc3c7';
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-8, -3); ctx.lineTo(-8, 3); ctx.fill();
+        
+        ctx.restore();
+    }
+
+    function loop() {
+        drawScenery();
+
+        // Update Target
+        target.y += target.speed * target.dir;
+        if (target.y > 380 || target.y < 70) target.dir *= -1;
+
+        // Draw Target Rings
+        const colors = ['#fff', '#000', '#3498db', '#e74c3c', '#f1c40f'];
+        for(let i=0; i<5; i++) {
+            ctx.fillStyle = colors[i];
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, target.radius - (i*8), 0, Math.PI*2);
+            ctx.fill();
+            ctx.strokeStyle = "rgba(0,0,0,0.2)";
+            ctx.stroke();
+        }
+
+        // Particles
+        particles.forEach((p, i) => {
+            p.update(); p.draw();
+            if(p.alpha <= 0) particles.splice(i, 1);
+        });
+
+        // Arrows
+        arrows.forEach((a, index) => {
+            if (!a.stuck) {
+                a.vx += wind;
+                a.vy += 0.15; // Gravity
+                a.x += a.vx;
+                a.y += a.vy;
+                a.angle = Math.atan2(a.vy, a.vx);
+
+                // Collision
+                const dx = a.x - target.x;
+                const dy = a.y - target.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < target.radius) {
+                    a.stuck = true;
+                    let points = Math.ceil(5 - (dist / 10)) * 10;
+                    score += Math.max(10, points);
+                    spawnParticles(a.x, a.y, '#f1c40f');
+                    wind = (Math.random() * 0.2) - 0.1; // Shift wind
+                    updateUI();
+                }
+
+                if (a.y > 400) { // Hit Ground
+                    a.stuck = true; 
+                    a.y = 400;
+                    spawnParticles(a.x, a.y, '#4d7c32');
+                }
+            }
+            drawArrow(a);
+        });
+
+        requestAnimationFrame(loop);
+    }
+
+    updateUI();
+    loop();
+</script>
+</body>
+</html>
